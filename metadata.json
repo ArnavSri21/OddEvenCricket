@@ -1,0 +1,6 @@
+{
+  "name": "Odd-Even Cricket",
+  "description": "Classic odd-even hand cricket game with toss, multiple match formats, adaptive AI opponents, animated pitch duel, and live broadcast scorecards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

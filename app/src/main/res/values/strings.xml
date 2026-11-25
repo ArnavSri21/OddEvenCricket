@@ -1,0 +1,109 @@
+<resources>
+    <string name="app_name">Odd-Even Cricket</string>
+
+    <!-- Navigation & General -->
+    <string name="cd_back">Navigate back</string>
+    <string name="cd_rules">How to play rules</string>
+    <string name="cd_haptics_on">Haptic feedback enabled</string>
+    <string name="cd_haptics_off">Haptic feedback disabled</string>
+    <string name="cd_sound_on">Match sound effects enabled</string>
+    <string name="cd_sound_off">Match sound effects muted</string>
+    <string name="cd_match_stats">Open match statistics</string>
+    <string name="cd_close_match_stats">Close match statistics</string>
+    <string name="match_stats_title">MATCH STATISTICS</string>
+    <string name="match_stats_button">MATCH STATS</string>
+    <string name="cd_stadium_hero">Floodlit cricket stadium pitch at night</string>
+    <string name="cd_trophy_banner">Cricket championship trophy celebration</string>
+    <string name="cd_exit_match">Leave current match</string>
+
+    <!-- Home Screen -->
+    <string name="home_subtitle">CLASSIC HAND CRICKET • STADIUM EDITION</string>
+    <string name="home_session_record">SESSION RECORD</string>
+    <string name="home_matches_won">WON</string>
+    <string name="home_matches_played">PLAYED</string>
+    <string name="home_best_score">BEST</string>
+    <string name="home_win_streak">STREAK</string>
+    <string name="home_format_title">MATCH FORMAT</string>
+    <string name="home_difficulty_title">AI OPPONENT</string>
+    <string name="home_play_cta">HEAD TO THE TOSS</string>
+    <string name="home_how_to_play">RULES</string>
+
+    <!-- Match Formats -->
+    <string name="format_classic_name">1-Wicket Classic</string>
+    <string name="format_classic_desc">Unlimited overs • 1 wicket</string>
+    <string name="format_super_over_name">Super Over</string>
+    <string name="format_super_over_desc">1 over (6 balls) • 2 wickets</string>
+    <string name="format_t3_name">T3 Blitz</string>
+    <string name="format_t3_desc">3 overs (18 balls) • 3 wickets</string>
+    <string name="format_t5_name">T5 Clash</string>
+    <string name="format_t5_desc">5 overs (30 balls) • 5 wickets</string>
+
+    <!-- Difficulties -->
+    <string name="diff_rookie">Rookie</string>
+    <string name="diff_pro">Pro</string>
+    <string name="diff_legend">Legend</string>
+    <string name="diff_rookie_hint">Unpredictable &amp; casual</string>
+    <string name="diff_pro_hint">Reads recent picks</string>
+    <string name="diff_legend_hint">Tactical pattern counter</string>
+
+    <!-- Toss Screen -->
+    <string name="toss_title">THE TOSS</string>
+    <string name="toss_step_call">STEP 1 • CALL ODD OR EVEN</string>
+    <string name="toss_step_throw">STEP 2 • THROW YOUR FINGERS (1–6)</string>
+    <string name="toss_odd">ODD</string>
+    <string name="toss_even">EVEN</string>
+    <string name="toss_you_won">YOU WON THE TOSS!</string>
+    <string name="toss_cpu_won">CPU WON THE TOSS</string>
+    <string name="toss_choose_action">Choose to Bat or Bowl first</string>
+    <string name="toss_bat_first">BAT FIRST</string>
+    <string name="toss_bowl_first">BOWL FIRST</string>
+    <string name="toss_start_match">TAKE THE PITCH</string>
+
+    <!-- Match Screen -->
+    <string name="innings_first">1ST INNINGS</string>
+    <string name="innings_second">2ND INNINGS</string>
+    <string name="innings_super_over">SUPER OVER</string>
+    <string name="role_batting">YOU ARE BATTING</string>
+    <string name="role_bowling">YOU ARE BOWLING</string>
+    <string name="label_you">YOU</string>
+    <string name="label_cpu">CPU</string>
+    <string name="label_target">TARGET</string>
+    <string name="label_crr">CRR</string>
+    <string name="label_rrr">RRR</string>
+    <string name="label_overs">OVERS</string>
+    <string name="label_balls">BALLS</string>
+    <string name="prompt_pick_shot">PICK YOUR SHOT</string>
+    <string name="prompt_pick_delivery">PICK YOUR DELIVERY</string>
+    <string name="recent_balls_empty">First ball coming up…</string>
+    <string name="recent_balls_title">THIS OVER / RECENT</string>
+
+    <!-- Innings Break -->
+    <string name="break_title">INNINGS BREAK</string>
+    <string name="break_start_second">START 2ND INNINGS</string>
+
+    <!-- Result Screen -->
+    <string name="result_you_won">VICTORY!</string>
+    <string name="result_cpu_won">DEFEAT</string>
+    <string name="result_tied">MATCH TIED!</string>
+    <string name="result_play_super_over">PLAY SUPER OVER</string>
+    <string name="result_rematch">REMATCH</string>
+    <string name="result_home">PAVILION</string>
+    <string name="result_scorecard">MATCH SCORECARD</string>
+    <string name="result_comparison">RUN PROGRESSION</string>
+
+    <!-- Exit Dialog -->
+    <string name="dialog_exit_title">Abandon Match?</string>
+    <string name="dialog_exit_body">Your current innings progress will be lost if you return to the pavilion.</string>
+    <string name="dialog_stay">Keep Playing</string>
+    <string name="dialog_leave">Abandon</string>
+
+    <!-- Rules Sheet -->
+    <string name="rules_title">How to Play Odd-Even Cricket</string>
+    <string name="rules_toss_heading">1. The Odd-Even Toss</string>
+    <string name="rules_toss_body">Call Odd or Even, then throw a number from 1 to 6. If your number plus the CPU\'s number matches your call, you win the toss and decide to Bat or Bowl first.</string>
+    <string name="rules_play_heading">2. Batting &amp; Bowling</string>
+    <string name="rules_play_body">Every ball, both players pick a number from 1 to 6 simultaneously. If the numbers differ, the batter scores their chosen number in runs. If both numbers match, the batter is OUT!</string>
+    <string name="rules_win_heading">3. Winning the Match</string>
+    <string name="rules_win_body">Innings end when all wickets fall or overs run out. Chase down the target in the 2nd innings to win — or settle ties with a dramatic Super Over!</string>
+    <string name="rules_got_it">Got It</string>
+</resources>

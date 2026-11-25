@@ -1,0 +1,254 @@
+{
+  "entities": {
+    "PlayerProfile": {
+      "title": "PlayerProfile",
+      "description": "Public non-PII cricket player profile storing display name, unique 6-character friend code, and career stats.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the player." },
+        "displayName": { "type": "string", "description": "Public player display name (1-40 chars)." },
+        "friendCode": { "type": "string", "description": "6-character uppercase alphanumeric code for adding friends." },
+        "matchesPlayed": { "type": "integer", "description": "Total completed matches." },
+        "matchesWon": { "type": "integer", "description": "Total matches won." },
+        "bestScore": { "type": "integer", "description": "Highest single-innings score." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "displayName", "friendCode", "matchesPlayed", "matchesWon", "bestScore", "createdAt", "updatedAt"]
+    },
+    "FriendCodeLookup": {
+      "title": "FriendCodeLookup",
+      "description": "Direct O(1) lookup document keyed by 6-character friend code mapping to a player UID and display name.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID matching request.auth.uid." },
+        "displayName": { "type": "string", "description": "Owner public display name (1-40 chars)." },
+        "friendCode": { "type": "string", "description": "6-character uppercase alphanumeric code matching document ID." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "displayName", "friendCode", "createdAt"]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "description": "Mutual friend connection or pending friend request between two authenticated players.",
+      "type": "object",
+      "properties": {
+        "memberUids": { "type": "array", "description": "Exactly 2 UIDs belonging to the friendship." },
+        "requesterUid": { "type": "string", "description": "UID of the player who initiated the friend request." },
+        "recipientUid": { "type": "string", "description": "UID of the player receiving the friend request." },
+        "requesterName": { "type": "string", "description": "Display name of requester." },
+        "recipientName": { "type": "string", "description": "Display name of recipient." },
+        "requesterCode": { "type": "string", "description": "6-char friend code of requester." },
+        "recipientCode": { "type": "string", "description": "6-char friend code of recipient." },
+        "status": { "type": "string", "enum": ["pending", "accepted"], "description": "Request status." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": ["memberUids", "requesterUid", "recipientUid", "requesterName", "recipientName", "requesterCode", "recipientCode", "status", "createdAt", "updatedAt"]
+    },
+    "RoomInvite": {
+      "title": "RoomInvite",
+      "description": "Real-time invitation or challenge sent to a friend or group member to join a specific online cricket game room.",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string", "description": "Sender UID." },
+        "fromName": { "type": "string", "description": "Sender display name." },
+        "toUid": { "type": "string", "description": "Recipient UID." },
+        "roomCode": { "type": "string", "description": "6-char room code to join." },
+        "roomMode": { "type": "string", "enum": ["DUEL_1V1", "TEAM_PLAY"], "description": "Game mode." },
+        "formatId": { "type": "string", "description": "Match format identifier." },
+        "status": { "type": "string", "enum": ["pending", "accepted", "dismissed"], "description": "Invite state." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": ["fromUid", "fromName", "toUid", "roomCode", "roomMode", "formatId", "status", "createdAt", "updatedAt"]
+    },
+    "CricketGroup": {
+      "title": "CricketGroup",
+      "description": "Player group / club where members can chat, challenge individuals, launch group-wide team matches, join waiting rooms, and spectate live matches. Group Captain (ownerUid) acts as admin.",
+      "type": "object",
+      "properties": {
+        "groupCode": { "type": "string", "description": "6-char uppercase group code matching document ID." },
+        "name": { "type": "string", "description": "Group name (1-40 chars)." },
+        "ownerUid": { "type": "string", "description": "Group Captain / admin UID." },
+        "ownerName": { "type": "string", "description": "Group Captain display name." },
+        "memberUids": { "type": "array", "description": "Bounded list (1-20) of member UIDs." },
+        "memberNames": { "type": "object", "description": "Map of member UID to display name." },
+        "mutedUids": { "type": "array", "description": "Optional bounded list (0-20) of member UIDs muted in group chat by the Group Captain." },
+        "announcement": { "type": "string", "description": "Optional pinned group announcement set by the Group Captain (0-140 chars)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": ["groupCode", "name", "ownerUid", "ownerName", "memberUids", "memberNames", "createdAt", "updatedAt"]
+    },
+    "GroupChatMessage": {
+      "title": "GroupChatMessage",
+      "description": "Real-time chat message sent inside a CricketGroup, moderated by the Group Captain.",
+      "type": "object",
+      "properties": {
+        "groupCode": { "type": "string", "description": "6-char group code matching parent group." },
+        "senderUid": { "type": "string", "description": "UID of the sender." },
+        "senderName": { "type": "string", "description": "Display name of sender (1-40 chars)." },
+        "text": { "type": "string", "description": "Message body (1-300 chars)." },
+        "isCaptain": { "type": "boolean", "description": "True if sender is the Group Captain (admin)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": ["groupCode", "senderUid", "senderName", "text", "isCaptain", "createdAt"]
+    },
+    "MatchHistoryRecord": {
+      "title": "MatchHistoryRecord",
+      "description": "Per-match performance record for Player Statistics charts (win/loss ratio and average runs per match).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID matching parent player_profiles/{userId}." },
+        "mode": { "type": "string", "enum": ["SOLO", "DUEL_1V1", "TEAM_PLAY"], "description": "Match mode." },
+        "formatId": { "type": "string", "description": "Match format identifier." },
+        "outcome": { "type": "string", "enum": ["WIN", "LOSS", "TIE"], "description": "Match result for the player." },
+        "runsScored": { "type": "integer", "description": "Runs scored by player or player team." },
+        "wicketsLost": { "type": "integer", "description": "Wickets lost." },
+        "ballsFaced": { "type": "integer", "description": "Balls faced in player innings." },
+        "fours": { "type": "integer", "description": "Number of 4s scored." },
+        "sixes": { "type": "integer", "description": "Number of 6s scored." },
+        "opponentName": { "type": "string", "description": "Opponent or opposing team label (1-40 chars)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "mode", "formatId", "outcome", "runsScored", "wicketsLost", "ballsFaced", "fours", "sixes", "opponentName", "createdAt"]
+    },
+    "GameRoom": {
+      "title": "GameRoom",
+      "description": "Real-time online Odd-Even Cricket room supporting 1v1 duels, Team Play, group challenges, live spectating, and in-match reactions.",
+      "type": "object",
+      "properties": {
+        "roomCode": { "type": "string", "description": "6-char uppercase room code matching document ID." },
+        "hostUid": { "type": "string", "description": "UID of the room host." },
+        "hostName": { "type": "string", "description": "Display name of the room host." },
+        "mode": { "type": "string", "enum": ["DUEL_1V1", "TEAM_PLAY"], "description": "1v1 duel or Team Play." },
+        "formatId": { "type": "string", "description": "Match format id (classic_1w, super_over, t3_blitz, t5_clash)." },
+        "openLobby": { "type": "boolean", "description": "True if visible in the public open rooms lobby." },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "captain_reveal", "draft_toss", "team_draft", "match_toss", "playing", "innings_break", "finished"],
+          "description": "Current room lifecycle stage."
+        },
+        "groupCode": { "type": "string", "description": "Optional 6-char group code if created inside a group (empty string otherwise)." },
+        "groupMemberUids": { "type": "array", "description": "Denormalized list (0-20) of group member UIDs allowed to view, join, or spectate." },
+        "challengedUid": { "type": "string", "description": "Target player UID for a 1v1 challenge, or empty string for open/group match." },
+        "spectatorUids": { "type": "array", "description": "Bounded list (0-20) of UIDs currently spectating the room." },
+        "memberUids": { "type": "array", "description": "Bounded list (1-10) of human player UIDs in the room." },
+        "rosterUids": { "type": "array", "description": "Bounded list (1-10) of all participant IDs (humans + optional room bots)." },
+        "playerNames": { "type": "object", "description": "Map of participant UID to display name." },
+        "botUids": { "type": "array", "description": "Bounded list (0-9) of bot participant IDs." },
+        "captainAUid": { "type": "string", "description": "Randomly selected Captain A UID." },
+        "captainBUid": { "type": "string", "description": "Randomly selected Captain B UID." },
+        "draftPoolUids": { "type": "array", "description": "Remaining undrafted participant IDs." },
+        "teamAUids": { "type": "array", "description": "Team A participant IDs." },
+        "teamBUids": { "type": "array", "description": "Team B participant IDs." },
+        "commonPlayerUid": { "type": "string", "description": "Last remaining player when total count is odd; plays for both teams." },
+        "tossCallerUid": { "type": "string", "description": "UID of captain calling odd or even." },
+        "tossCall": { "type": "string", "enum": ["", "ODD", "EVEN"], "description": "Current toss call." },
+        "tossPickA": { "type": "integer", "description": "Captain A toss throw (0 = pending, 1..6)." },
+        "tossPickB": { "type": "integer", "description": "Captain B toss throw (0 = pending, 1..6)." },
+        "tossWinnerUid": { "type": "string", "description": "UID of current toss winner." },
+        "draftTurnUid": { "type": "string", "description": "Captain UID currently picking a teammate." },
+        "lastTossSummary": { "type": "string", "description": "Human-readable toss outcome summary." },
+        "inningsNumber": { "type": "integer", "description": "1 or 2." },
+        "battingTeam": { "type": "string", "enum": ["", "A", "B"], "description": "Currently batting team." },
+        "battingLineup": { "type": "array", "description": "Ordered batting UIDs for current innings." },
+        "bowlingLineup": { "type": "array", "description": "Ordered bowling UIDs for current innings." },
+        "activeBatterUid": { "type": "string", "description": "Current striker UID." },
+        "activeBowlerUid": { "type": "string", "description": "Current bowler UID." },
+        "batterPick": { "type": "integer", "description": "Pending batter throw (0 = waiting, 1..6)." },
+        "bowlerPick": { "type": "integer", "description": "Pending bowler throw (0 = waiting, 1..6)." },
+        "runs": { "type": "integer", "description": "Current innings runs." },
+        "wickets": { "type": "integer", "description": "Current innings wickets lost." },
+        "balls": { "type": "integer", "description": "Current innings balls bowled." },
+        "fours": { "type": "integer", "description": "Current innings fours." },
+        "sixes": { "type": "integer", "description": "Current innings sixes." },
+        "maxWickets": { "type": "integer", "description": "Maximum wickets per innings." },
+        "maxBalls": { "type": "integer", "description": "Maximum balls per innings (0 = unlimited)." },
+        "firstInningsRuns": { "type": "integer", "description": "Completed 1st innings runs." },
+        "firstInningsWickets": { "type": "integer", "description": "Completed 1st innings wickets." },
+        "firstInningsBalls": { "type": "integer", "description": "Completed 1st innings balls." },
+        "firstInningsTeam": { "type": "string", "enum": ["", "A", "B"], "description": "Team that batted first." },
+        "targetRuns": { "type": "integer", "description": "Runs needed to win in 2nd innings." },
+        "recentBalls": { "type": "array", "description": "Recent ball outcome badges (max 60)." },
+        "lastBallSummary": { "type": "string", "description": "Latest delivery commentary." },
+        "lastBatterPick": { "type": "integer", "description": "Resolved batter pick for display (0..6)." },
+        "lastBowlerPick": { "type": "integer", "description": "Resolved bowler pick for display (0..6)." },
+        "lastDeliverySeq": { "type": "integer", "description": "Monotonic delivery counter for animations." },
+        "winnerTeam": { "type": "string", "enum": ["", "A", "B", "TIE"], "description": "Match winner." },
+        "resultHeadline": { "type": "string", "description": "Final match margin headline." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "roomCode", "hostUid", "hostName", "mode", "formatId", "openLobby", "status",
+        "groupCode", "groupMemberUids", "challengedUid", "spectatorUids",
+        "memberUids", "rosterUids", "playerNames", "botUids",
+        "captainAUid", "captainBUid", "draftPoolUids", "teamAUids", "teamBUids", "commonPlayerUid",
+        "tossCallerUid", "tossCall", "tossPickA", "tossPickB", "tossWinnerUid", "draftTurnUid", "lastTossSummary",
+        "inningsNumber", "battingTeam", "battingLineup", "bowlingLineup", "activeBatterUid", "activeBowlerUid",
+        "batterPick", "bowlerPick", "runs", "wickets", "balls", "fours", "sixes", "maxWickets", "maxBalls",
+        "firstInningsRuns", "firstInningsWickets", "firstInningsBalls", "firstInningsTeam", "targetRuns",
+        "recentBalls", "lastBallSummary", "lastBatterPick", "lastBowlerPick", "lastDeliverySeq",
+        "winnerTeam", "resultHeadline", "createdAt", "updatedAt"
+      ]
+    },
+    "MatchReaction": {
+      "title": "MatchReaction",
+      "description": "Live in-match reaction sent by players or spectators inside a game room.",
+      "type": "object",
+      "properties": {
+        "roomCode": { "type": "string", "description": "6-char room code matching parent room." },
+        "senderUid": { "type": "string", "description": "UID of the sender." },
+        "senderName": { "type": "string", "description": "Display name of sender (1-40 chars)." },
+        "reactionType": {
+          "type": "string",
+          "enum": ["FIRE", "CLAP", "SHOCK", "LAUGH", "SIX", "WICKET", "CROWN", "GG"],
+          "description": "Reaction type identifier."
+        },
+        "allowedUids": { "type": "array", "description": "Denormalized bounded list (1-25) of UIDs authorized to read this reaction." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": ["roomCode", "senderUid", "senderName", "reactionType", "allowedUids", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/player_profiles/{userId}": {
+      "schema": { "$ref": "#/entities/PlayerProfile" },
+      "description": "Public non-PII player profiles and career stats."
+    },
+    "/player_profiles/{userId}/match_history/{matchId}": {
+      "schema": { "$ref": "#/entities/MatchHistoryRecord" },
+      "description": "Per-match player statistics records for win/loss ratio and average runs analytics."
+    },
+    "/friend_codes/{code}": {
+      "schema": { "$ref": "#/entities/FriendCodeLookup" },
+      "description": "Direct O(1) lookup documents mapping 6-character friend codes to player UIDs."
+    },
+    "/friendships/{friendshipId}": {
+      "schema": { "$ref": "#/entities/Friendship" },
+      "description": "Friend requests and accepted friendships scoped to memberUids."
+    },
+    "/room_invites/{inviteId}": {
+      "schema": { "$ref": "#/entities/RoomInvite" },
+      "description": "Real-time game room invitations and group challenges between players."
+    },
+    "/cricket_groups/{groupCode}": {
+      "schema": { "$ref": "#/entities/CricketGroup" },
+      "description": "Cricket groups where members can chat, join games, spectate live matches, and challenge each other, with Captain as admin."
+    },
+    "/cricket_groups/{groupCode}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/GroupChatMessage" },
+      "description": "Real-time group chat messages moderated by the Group Captain."
+    },
+    "/game_rooms/{roomCode}": {
+      "schema": { "$ref": "#/entities/GameRoom" },
+      "description": "Real-time multiplayer Odd-Even Cricket game rooms (1v1, Team Play, and Group Matches with spectating)."
+    },
+    "/game_rooms/{roomCode}/reactions/{reactionId}": {
+      "schema": { "$ref": "#/entities/MatchReaction" },
+      "description": "Real-time in-match reactions sent between players and spectators."
+    }
+  }
+}

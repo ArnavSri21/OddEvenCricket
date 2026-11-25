@@ -1,0 +1,609 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidCode(code) {
+      return code is string && code.size() == 6 && code.matches('^[A-Z0-9]{6}$');
+    }
+
+    function isValidOptionalCode(code) {
+      return code is string && (code == '' || isValidCode(code));
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+
+    function isValidPlayerProfile(data) {
+      return data.keys().hasAll([
+               'userId', 'displayName', 'friendCode', 'matchesPlayed',
+               'matchesWon', 'bestScore', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'userId', 'displayName', 'friendCode', 'matchesPlayed',
+               'matchesWon', 'bestScore', 'createdAt', 'updatedAt'
+             ]) &&
+             isValidId(data.userId) &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
+             isValidCode(data.friendCode) &&
+             data.matchesPlayed is int && data.matchesPlayed >= 0 && data.matchesPlayed <= 100000 &&
+             data.matchesWon is int && data.matchesWon >= 0 && data.matchesWon <= data.matchesPlayed &&
+             data.bestScore is int && data.bestScore >= 0 && data.bestScore <= 10000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFriendCodeLookup(data) {
+      return data.keys().hasAll(['userId', 'displayName', 'friendCode', 'createdAt']) &&
+             data.keys().hasOnly(['userId', 'displayName', 'friendCode', 'createdAt']) &&
+             isValidId(data.userId) &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
+             isValidCode(data.friendCode) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidFriendship(data) {
+      return data.keys().hasAll([
+               'memberUids', 'requesterUid', 'recipientUid',
+               'requesterName', 'recipientName', 'requesterCode', 'recipientCode',
+               'status', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'memberUids', 'requesterUid', 'recipientUid',
+               'requesterName', 'recipientName', 'requesterCode', 'recipientCode',
+               'status', 'createdAt', 'updatedAt'
+             ]) &&
+             data.memberUids is list && data.memberUids.size() == 2 &&
+             data.memberUids[0] is string && data.memberUids[1] is string &&
+             data.requesterUid is string && data.recipientUid is string &&
+             data.requesterUid != data.recipientUid &&
+             data.requesterUid in data.memberUids &&
+             data.recipientUid in data.memberUids &&
+             data.requesterName is string && data.requesterName.size() >= 1 && data.requesterName.size() <= 40 &&
+             data.recipientName is string && data.recipientName.size() >= 1 && data.recipientName.size() <= 40 &&
+             isValidCode(data.requesterCode) &&
+             isValidCode(data.recipientCode) &&
+             data.status in ['pending', 'accepted'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidRoomInvite(data) {
+      return data.keys().hasAll([
+               'fromUid', 'fromName', 'toUid', 'roomCode', 'roomMode',
+               'formatId', 'status', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'fromUid', 'fromName', 'toUid', 'roomCode', 'roomMode',
+               'formatId', 'status', 'createdAt', 'updatedAt'
+             ]) &&
+             isValidId(data.fromUid) &&
+             isValidId(data.toUid) &&
+             data.fromUid != data.toUid &&
+             data.fromName is string && data.fromName.size() >= 1 && data.fromName.size() <= 40 &&
+             isValidCode(data.roomCode) &&
+             data.roomMode in ['DUEL_1V1', 'TEAM_PLAY'] &&
+             data.formatId in ['classic_1w', 'super_over', 't3_blitz', 't5_clash'] &&
+             data.status in ['pending', 'accepted', 'dismissed'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCricketGroup(data) {
+      return data.keys().hasAll([
+               'groupCode', 'name', 'ownerUid', 'ownerName',
+               'memberUids', 'memberNames', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'groupCode', 'name', 'ownerUid', 'ownerName',
+               'memberUids', 'memberNames', 'mutedUids', 'announcement', 'createdAt', 'updatedAt'
+             ]) &&
+             isValidCode(data.groupCode) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 40 &&
+             isValidId(data.ownerUid) &&
+             data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 40 &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 20 &&
+             data.memberUids[0] is string &&
+             data.ownerUid in data.memberUids &&
+             data.memberNames is map && data.memberNames.size() >= 1 && data.memberNames.size() <= 20 &&
+             (!('mutedUids' in data) || (data.mutedUids is list && data.mutedUids.size() <= 20)) &&
+             (!('announcement' in data) || (data.announcement is string && data.announcement.size() <= 140)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidGroupChatMessage(data, groupCode) {
+      return data.keys().hasAll([
+               'groupCode', 'senderUid', 'senderName', 'text', 'isCaptain', 'createdAt'
+             ]) &&
+             data.keys().hasOnly([
+               'groupCode', 'senderUid', 'senderName', 'text', 'isCaptain', 'createdAt'
+             ]) &&
+             data.groupCode == groupCode &&
+             isValidId(data.senderUid) &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 40 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 300 &&
+             data.isCaptain is bool &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidMatchHistoryRecord(data) {
+      return data.keys().hasAll([
+               'userId', 'mode', 'formatId', 'outcome', 'runsScored',
+               'wicketsLost', 'ballsFaced', 'fours', 'sixes', 'opponentName', 'createdAt'
+             ]) &&
+             data.keys().hasOnly([
+               'userId', 'mode', 'formatId', 'outcome', 'runsScored',
+               'wicketsLost', 'ballsFaced', 'fours', 'sixes', 'opponentName', 'createdAt'
+             ]) &&
+             isValidId(data.userId) &&
+             data.mode in ['SOLO', 'DUEL_1V1', 'TEAM_PLAY'] &&
+             data.formatId in ['classic_1w', 'super_over', 't3_blitz', 't5_clash'] &&
+             data.outcome in ['WIN', 'LOSS', 'TIE'] &&
+             data.runsScored is int && data.runsScored >= 0 && data.runsScored <= 10000 &&
+             data.wicketsLost is int && data.wicketsLost >= 0 && data.wicketsLost <= 10 &&
+             data.ballsFaced is int && data.ballsFaced >= 0 && data.ballsFaced <= 200 &&
+             data.fours is int && data.fours >= 0 && data.fours <= 200 &&
+             data.sixes is int && data.sixes >= 0 && data.sixes <= 200 &&
+             data.opponentName is string && data.opponentName.size() >= 1 && data.opponentName.size() <= 40 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidMatchReaction(data, roomCode) {
+      return data.keys().hasAll([
+               'roomCode', 'senderUid', 'senderName', 'reactionType', 'allowedUids', 'createdAt'
+             ]) &&
+             data.keys().hasOnly([
+               'roomCode', 'senderUid', 'senderName', 'reactionType', 'allowedUids', 'createdAt'
+             ]) &&
+             data.roomCode == roomCode &&
+             isValidId(data.senderUid) &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 40 &&
+             data.reactionType in ['FIRE', 'CLAP', 'SHOCK', 'LAUGH', 'SIX', 'WICKET', 'CROWN', 'GG'] &&
+             data.allowedUids is list && data.allowedUids.size() >= 1 && data.allowedUids.size() <= 25 &&
+             data.allowedUids[0] is string &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidRoomKeys(d) {
+      return d.size() == 57 &&
+             d.keys().hasOnly([
+               'roomCode', 'hostUid', 'hostName', 'mode', 'formatId', 'openLobby', 'status',
+               'groupCode', 'groupMemberUids', 'challengedUid', 'spectatorUids',
+               'memberUids', 'rosterUids', 'playerNames', 'botUids',
+               'captainAUid', 'captainBUid', 'draftPoolUids', 'teamAUids', 'teamBUids', 'commonPlayerUid',
+               'tossCallerUid', 'tossCall', 'tossPickA', 'tossPickB', 'tossWinnerUid', 'draftTurnUid', 'lastTossSummary',
+               'inningsNumber', 'battingTeam', 'battingLineup', 'bowlingLineup', 'activeBatterUid', 'activeBowlerUid',
+               'batterPick', 'bowlerPick', 'runs', 'wickets', 'balls', 'fours', 'sixes', 'maxWickets', 'maxBalls',
+               'firstInningsRuns', 'firstInningsWickets', 'firstInningsBalls', 'firstInningsTeam', 'targetRuns',
+               'recentBalls', 'lastBallSummary', 'lastBatterPick', 'lastBowlerPick', 'lastDeliverySeq',
+               'winnerTeam', 'resultHeadline', 'createdAt', 'updatedAt'
+             ]);
+    }
+
+    function isValidRoomLobby(d) {
+      return isValidCode(d.roomCode) &&
+             isValidId(d.hostUid) &&
+             d.hostName is string && d.hostName.size() >= 1 && d.hostName.size() <= 40 &&
+             d.mode in ['DUEL_1V1', 'TEAM_PLAY'] &&
+             d.formatId in ['classic_1w', 'super_over', 't3_blitz', 't5_clash'] &&
+             d.openLobby is bool &&
+             d.status in [
+               'waiting', 'captain_reveal', 'draft_toss', 'team_draft',
+               'match_toss', 'playing', 'innings_break', 'finished'
+             ] &&
+             isValidOptionalCode(d.groupCode) &&
+             d.groupMemberUids is list && d.groupMemberUids.size() <= 20 &&
+             d.challengedUid is string && d.challengedUid.size() <= 128 &&
+             d.spectatorUids is list && d.spectatorUids.size() <= 20 &&
+             d.memberUids is list && d.memberUids.size() >= 1 && d.memberUids.size() <= 10 &&
+             d.rosterUids is list && d.rosterUids.size() >= 1 && d.rosterUids.size() <= 10 &&
+             d.playerNames is map && d.playerNames.size() <= 10 &&
+             d.botUids is list && d.botUids.size() <= 9;
+    }
+
+    function isValidRoomDraft(d) {
+      return d.captainAUid is string && d.captainAUid.size() <= 128 &&
+             d.captainBUid is string && d.captainBUid.size() <= 128 &&
+             d.draftPoolUids is list && d.draftPoolUids.size() <= 10 &&
+             d.teamAUids is list && d.teamAUids.size() <= 6 &&
+             d.teamBUids is list && d.teamBUids.size() <= 6 &&
+             d.commonPlayerUid is string && d.commonPlayerUid.size() <= 128 &&
+             d.tossCallerUid is string && d.tossCallerUid.size() <= 128 &&
+             d.tossCall in ['', 'ODD', 'EVEN'] &&
+             d.tossPickA is int && d.tossPickA >= 0 && d.tossPickA <= 6 &&
+             d.tossPickB is int && d.tossPickB >= 0 && d.tossPickB <= 6 &&
+             d.tossWinnerUid is string && d.tossWinnerUid.size() <= 128 &&
+             d.draftTurnUid is string && d.draftTurnUid.size() <= 128 &&
+             d.lastTossSummary is string && d.lastTossSummary.size() <= 180;
+    }
+
+    function isValidRoomMatch(d) {
+      return d.inningsNumber is int && d.inningsNumber >= 1 && d.inningsNumber <= 2 &&
+             d.battingTeam in ['', 'A', 'B'] &&
+             d.battingLineup is list && d.battingLineup.size() <= 7 &&
+             d.bowlingLineup is list && d.bowlingLineup.size() <= 7 &&
+             d.activeBatterUid is string && d.activeBatterUid.size() <= 128 &&
+             d.activeBowlerUid is string && d.activeBowlerUid.size() <= 128 &&
+             d.batterPick is int && d.batterPick >= 0 && d.batterPick <= 6 &&
+             d.bowlerPick is int && d.bowlerPick >= 0 && d.bowlerPick <= 6 &&
+             d.runs is int && d.runs >= 0 &&
+             d.wickets is int && d.wickets >= 0 &&
+             d.balls is int && d.balls >= 0 &&
+             d.fours is int && d.sixes is int &&
+             d.maxWickets is int && d.maxWickets >= 1 && d.maxWickets <= 10 &&
+             d.maxBalls is int && d.maxBalls >= 0 && d.maxBalls <= 60 &&
+             d.firstInningsRuns is int && d.firstInningsWickets is int && d.firstInningsBalls is int &&
+             d.firstInningsTeam in ['', 'A', 'B'] &&
+             d.targetRuns is int && d.targetRuns >= 0 &&
+             d.recentBalls is list && d.recentBalls.size() <= 80 &&
+             d.lastBallSummary is string && d.lastBallSummary.size() <= 180 &&
+             d.lastBatterPick is int && d.lastBowlerPick is int && d.lastDeliverySeq is int &&
+             d.winnerTeam in ['', 'A', 'B', 'TIE'] &&
+             d.resultHeadline is string && d.resultHeadline.size() <= 180 &&
+             isValidTimestamp(d.createdAt) &&
+             isValidTimestamp(d.updatedAt);
+    }
+
+    function isValidGameRoom(data) {
+      let d = data;
+      return d.size() == 57 &&
+             isValidRoomLobby(d) &&
+             isValidRoomDraft(d) &&
+             isValidRoomMatch(d);
+    }
+
+    function isValidRoomUpdate(d) {
+      return d.status in [
+               'waiting', 'captain_reveal', 'draft_toss', 'team_draft',
+               'match_toss', 'playing', 'innings_break', 'finished'
+             ] &&
+             d.memberUids is list && d.memberUids.size() >= 1 && d.memberUids.size() <= 10 &&
+             d.rosterUids is list && d.rosterUids.size() >= 1 && d.rosterUids.size() <= 10 &&
+             d.spectatorUids is list && d.spectatorUids.size() <= 20 &&
+             d.playerNames is map && d.playerNames.size() <= 10 &&
+             d.botUids is list && d.botUids.size() <= 9 &&
+             d.openLobby is bool &&
+             d.mode in ['DUEL_1V1', 'TEAM_PLAY'] &&
+             d.formatId in ['classic_1w', 'super_over', 't3_blitz', 't5_clash'] &&
+             d.tossCall in ['', 'ODD', 'EVEN'] &&
+             d.tossPickA is int && d.tossPickA >= 0 && d.tossPickA <= 6 &&
+             d.tossPickB is int && d.tossPickB >= 0 && d.tossPickB <= 6 &&
+             d.batterPick is int && d.batterPick >= 0 && d.batterPick <= 6 &&
+             d.bowlerPick is int && d.bowlerPick >= 0 && d.bowlerPick <= 6 &&
+             d.runs is int && d.runs >= 0 &&
+             d.wickets is int && d.wickets >= 0 &&
+             d.balls is int && d.balls >= 0 &&
+             d.winnerTeam in ['', 'A', 'B', 'TIE'] &&
+             isValidTimestamp(d.updatedAt);
+    }
+
+    function canUpdateGameRoom() {
+      let inc = request.resource.data;
+      let ext = resource.data;
+      let uid = request.auth.uid;
+      let d = inc.diff(ext);
+      let diffKeys = d.affectedKeys();
+      return ext.status != 'finished' &&
+             d.addedKeys().size() == 0 &&
+             d.removedKeys().size() == 0 &&
+             inc.roomCode == ext.roomCode &&
+             inc.hostUid == ext.hostUid &&
+             inc.groupCode == ext.groupCode &&
+             inc.challengedUid == ext.challengedUid &&
+             inc.createdAt == ext.createdAt && (
+               // Action 1: New player joins a waiting room (respecting challengedUid if set)
+               (ext.status == 'waiting' &&
+                !(uid in ext.memberUids) &&
+                (ext.challengedUid == '' || uid == ext.challengedUid) &&
+                uid in inc.memberUids &&
+                inc.memberUids.size() == ext.memberUids.size() + 1 &&
+                inc.rosterUids.size() == ext.rosterUids.size() + 1 &&
+                diffKeys.hasOnly(['memberUids', 'rosterUids', 'playerNames', 'updatedAt'])) ||
+
+               // Action 2: Non-host player leaves a waiting room
+               (ext.status == 'waiting' &&
+                uid in ext.memberUids &&
+                uid != ext.hostUid &&
+                !(uid in inc.memberUids) &&
+                diffKeys.hasOnly(['memberUids', 'rosterUids', 'playerNames', 'updatedAt'])) ||
+
+               // Action 3: Host updates waiting lobby (add/remove bots or toggle openLobby/mode/format)
+               (ext.status == 'waiting' &&
+                uid == ext.hostUid &&
+                diffKeys.hasOnly(['rosterUids', 'playerNames', 'botUids', 'openLobby', 'formatId', 'mode', 'updatedAt'])) ||
+
+               // Action 4: Room member advances match state (blocks modifying lobby/immutable/spectator fields)
+               (uid in ext.memberUids &&
+                !diffKeys.hasAny([
+                  'roomCode', 'hostUid', 'hostName', 'mode', 'formatId', 'openLobby',
+                  'groupCode', 'groupMemberUids', 'challengedUid', 'spectatorUids',
+                  'memberUids', 'rosterUids', 'playerNames', 'botUids', 'createdAt'
+                ])) ||
+
+               // Action 5: Group member, room member, or open-lobby viewer joins/leaves spectatorUids
+               ((uid in ext.groupMemberUids ||
+                 uid in ext.memberUids ||
+                 ext.openLobby == true) &&
+                diffKeys.hasOnly(['spectatorUids', 'updatedAt']))
+             );
+    }
+
+    // --- COLLECTION RULES ---
+
+    match /player_profiles/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       isValidPlayerProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidPlayerProfile(incoming()) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().friendCode == existing().friendCode &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'matchesPlayed', 'matchesWon', 'bestScore', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      match /match_history/{matchId} {
+        allow read: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(matchId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         isValidMatchHistoryRecord(incoming());
+
+        allow update: if false;
+
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(matchId) && request.auth.uid == userId;
+      }
+    }
+
+    match /friend_codes/{code} {
+      allow get: if isSignedIn() && isValidCode(code);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidCode(code) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().friendCode == code &&
+                       isValidFriendCodeLookup(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidCode(code) &&
+                       isValidFriendCodeLookup(incoming()) &&
+                       existing().userId == request.auth.uid &&
+                       incoming().userId == existing().userId &&
+                       incoming().friendCode == existing().friendCode &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName']);
+
+      allow delete: if isSignedIn() && isValidCode(code) && existing().userId == request.auth.uid;
+    }
+
+    match /friendships/{friendshipId} {
+      allow get: if isSignedIn() && isValidId(friendshipId) &&
+                    ((resource == null && friendshipId.matches('^.*' + request.auth.uid + '.*$')) ||
+                     (resource != null && request.auth.uid in existing().memberUids));
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+      allow create: if isSignedIn() &&
+                       isValidId(friendshipId) &&
+                       isValidFriendship(incoming()) &&
+                       incoming().requesterUid == request.auth.uid &&
+                       incoming().status == 'pending';
+
+      allow update: if isSignedIn() &&
+                       isValidId(friendshipId) &&
+                       isValidFriendship(incoming()) &&
+                       existing().status == 'pending' &&
+                       existing().recipientUid == request.auth.uid &&
+                       incoming().status == 'accepted' &&
+                       incoming().memberUids == existing().memberUids &&
+                       incoming().requesterUid == existing().requesterUid &&
+                       incoming().recipientUid == existing().recipientUid &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(friendshipId) && request.auth.uid in existing().memberUids;
+    }
+
+    match /room_invites/{inviteId} {
+      allow get: if isSignedIn() && isValidId(inviteId) &&
+                    (existing().toUid == request.auth.uid || existing().fromUid == request.auth.uid);
+      allow list: if isSignedIn() &&
+                     (resource.data.toUid == request.auth.uid || resource.data.fromUid == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+                       isValidId(inviteId) &&
+                       isValidRoomInvite(incoming()) &&
+                       incoming().fromUid == request.auth.uid &&
+                       incoming().status == 'pending';
+
+      allow update: if isSignedIn() &&
+                       isValidId(inviteId) &&
+                       isValidRoomInvite(incoming()) &&
+                       existing().status == 'pending' &&
+                       existing().toUid == request.auth.uid &&
+                       incoming().status in ['accepted', 'dismissed'] &&
+                       incoming().fromUid == existing().fromUid &&
+                       incoming().toUid == existing().toUid &&
+                       incoming().roomCode == existing().roomCode &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(inviteId) &&
+                       (existing().toUid == request.auth.uid || existing().fromUid == request.auth.uid);
+    }
+
+    match /cricket_groups/{groupCode} {
+      // Single-doc get allowed for code lookup (join by code / creation collision check / group detail)
+      allow get: if isSignedIn() && isValidCode(groupCode);
+      // Scoped list: only groups the user belongs to
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+      allow create: if isSignedIn() &&
+                       isValidCode(groupCode) &&
+                       isValidCricketGroup(incoming()) &&
+                       incoming().groupCode == groupCode &&
+                       incoming().ownerUid == request.auth.uid &&
+                       request.auth.uid in incoming().memberUids &&
+                       incoming().memberUids.size() == 1;
+
+      allow update: if isSignedIn() &&
+                       isValidCode(groupCode) &&
+                       isValidCricketGroup(incoming()) &&
+                       incoming().groupCode == existing().groupCode &&
+                       incoming().ownerUid == existing().ownerUid &&
+                       incoming().createdAt == existing().createdAt && (
+                         // Action 1: Join group by 6-char code
+                         (!(request.auth.uid in existing().memberUids) &&
+                          request.auth.uid in incoming().memberUids &&
+                          incoming().memberUids.size() == existing().memberUids.size() + 1 &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'memberNames', 'updatedAt'])) ||
+
+                         // Action 2: Non-owner leaves group
+                         (request.auth.uid in existing().memberUids &&
+                          request.auth.uid != existing().ownerUid &&
+                          !(request.auth.uid in incoming().memberUids) &&
+                          incoming().memberUids.size() == existing().memberUids.size() - 1 &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'memberNames', 'updatedAt'])) ||
+
+                         // Action 3: Group Captain (Admin) adds/kicks members, mutes/unmutes, updates announcement or group name
+                         (request.auth.uid == existing().ownerUid &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'name', 'memberUids', 'memberNames', 'mutedUids', 'announcement', 'updatedAt'
+                          ]))
+                       );
+
+      allow delete: if isSignedIn() && isValidCode(groupCode) && existing().ownerUid == request.auth.uid;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() &&
+                       isValidCode(groupCode) &&
+                       exists(/databases/$(database)/documents/cricket_groups/$(groupCode)) &&
+                       request.auth.uid in get(/databases/$(database)/documents/cricket_groups/$(groupCode)).data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidCode(groupCode) &&
+                         isValidId(messageId) &&
+                         isValidGroupChatMessage(incoming(), groupCode) &&
+                         incoming().senderUid == request.auth.uid &&
+                         exists(/databases/$(database)/documents/cricket_groups/$(groupCode)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/cricket_groups/$(groupCode)).data.memberUids &&
+                         (!('mutedUids' in get(/databases/$(database)/documents/cricket_groups/$(groupCode)).data) ||
+                          !(request.auth.uid in get(/databases/$(database)/documents/cricket_groups/$(groupCode)).data.mutedUids)) &&
+                         incoming().isCaptain == (request.auth.uid == get(/databases/$(database)/documents/cricket_groups/$(groupCode)).data.ownerUid);
+
+        allow update: if false;
+
+        allow delete: if isSignedIn() &&
+                         isValidCode(groupCode) &&
+                         isValidId(messageId) &&
+                         exists(/databases/$(database)/documents/cricket_groups/$(groupCode)) &&
+                         (existing().senderUid == request.auth.uid ||
+                          request.auth.uid == get(/databases/$(database)/documents/cricket_groups/$(groupCode)).data.ownerUid);
+      }
+    }
+
+    match /game_rooms/{roomCode} {
+      // Allow single-doc get for non-existent docs, waiting rooms, open lobbies, room members, or group members (for spectating)
+      allow get: if isSignedIn() && isValidCode(roomCode) &&
+                    (resource == null ||
+                     existing().status == 'waiting' ||
+                     existing().openLobby == true ||
+                     request.auth.uid in existing().memberUids ||
+                     request.auth.uid in existing().groupMemberUids);
+
+      // Query-enforced list: public waiting rooms, rooms user is in, OR group rooms user belongs to
+      allow list: if isSignedIn() &&
+                     ((resource.data.openLobby == true && resource.data.status == 'waiting') ||
+                      (request.auth.uid in resource.data.memberUids) ||
+                      (request.auth.uid in resource.data.groupMemberUids));
+
+      allow create: if isSignedIn() &&
+                       isValidCode(roomCode) &&
+                       isValidRoomKeys(incoming()) &&
+                       isValidGameRoom(incoming()) &&
+                       incoming().roomCode == roomCode &&
+                       incoming().hostUid == request.auth.uid &&
+                       request.auth.uid in incoming().memberUids &&
+                       incoming().status == 'waiting' &&
+                       (incoming().groupCode == '' ||
+                        (exists(/databases/$(database)/documents/cricket_groups/$(incoming().groupCode)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/cricket_groups/$(incoming().groupCode)).data.memberUids &&
+                         request.auth.uid in incoming().groupMemberUids));
+
+      allow update: if isSignedIn() &&
+                       isValidCode(roomCode) &&
+                       existing().status != 'finished' &&
+                       canUpdateGameRoom() &&
+                       isValidRoomUpdate(incoming());
+
+      allow delete: if isSignedIn() && isValidCode(roomCode) && existing().hostUid == request.auth.uid;
+
+      match /reactions/{reactionId} {
+        allow get: if isSignedIn() &&
+                      isValidCode(roomCode) &&
+                      isValidId(reactionId) &&
+                      request.auth.uid in existing().allowedUids;
+
+        allow list: if isSignedIn() &&
+                       isValidCode(roomCode) &&
+                       request.auth.uid in resource.data.allowedUids;
+
+        allow create: if isSignedIn() &&
+                         isValidCode(roomCode) &&
+                         isValidId(reactionId) &&
+                         isValidMatchReaction(incoming(), roomCode) &&
+                         incoming().senderUid == request.auth.uid &&
+                         request.auth.uid in incoming().allowedUids &&
+                         exists(/databases/$(database)/documents/game_rooms/$(roomCode)) &&
+                         (request.auth.uid in get(/databases/$(database)/documents/game_rooms/$(roomCode)).data.memberUids ||
+                          request.auth.uid in get(/databases/$(database)/documents/game_rooms/$(roomCode)).data.groupMemberUids ||
+                          request.auth.uid in get(/databases/$(database)/documents/game_rooms/$(roomCode)).data.spectatorUids);
+
+        allow update: if false;
+
+        allow delete: if isSignedIn() &&
+                         isValidCode(roomCode) &&
+                         isValidId(reactionId) &&
+                         existing().senderUid == request.auth.uid;
+      }
+    }
+  }
+}
