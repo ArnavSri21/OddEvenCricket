@@ -72,12 +72,14 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.InningsBreakScreen
 import com.example.ui.screens.MatchResultScreen
 import com.example.ui.screens.MatchScreen
+import com.example.ui.screens.OfflineSoloCricketApp
 import com.example.ui.screens.OnlineRoomHostScreen
 import com.example.ui.screens.PlayerStatsScreen
 import com.example.ui.screens.TossScreen
 import com.example.ui.theme.LocalStadiumColors
 import com.example.ui.theme.OddEvenCricketTheme
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
@@ -113,7 +115,21 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNavigationRoot() {
-    val auth = Firebase.auth
+    val context = LocalContext.current
+    val firebaseAvailable = remember(context) {
+        try {
+            FirebaseApp.getApps(context).isNotEmpty() || FirebaseApp.initializeApp(context) != null
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    if (!firebaseAvailable) {
+        OfflineSoloCricketApp()
+        return
+    }
+
+    val auth = remember { Firebase.auth }
     val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
 
     AnimatedContent(
@@ -162,8 +178,14 @@ private fun AuthenticatedCricketApp(
                 val app = checkNotNull(this[APPLICATION_KEY]) {
                     "APPLICATION_KEY missing from CreationExtras"
                 }
-                val databaseId = app.getString(R.string.firestore_database_id)
-                val db = FirebaseFirestore.getInstance(databaseId)
+                val databaseId = runCatching { app.getString(R.string.firestore_database_id) }
+                    .getOrNull()
+                    ?.takeIf { it.isNotBlank() }
+                val db = if (databaseId != null) {
+                    FirebaseFirestore.getInstance(databaseId)
+                } else {
+                    FirebaseFirestore.getInstance()
+                }
                 OnlineCricketViewModel(
                     repository = OnlineCricketRepository(db),
                     currentUserId = currentUserId,
